@@ -1,0 +1,6 @@
+{
+  "name": "Проклятый Флигель (The Forgotten Wing)",
+  "description": "Атмосферный 3D survival horror от первого лица и полный Game Design Document. Исследование заброшенного крыла школы, физические баррикады, шкафы-укрытия и непредсказуемый ИИ-призрак.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
