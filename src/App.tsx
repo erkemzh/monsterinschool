@@ -39,6 +39,16 @@ export default function App() {
   const [isGameOver, setIsGameOver] = useState(false);
   const [isEscaped, setIsEscaped] = useState(false);
   const [brightness, setBrightness] = useState(1.4);
+  const [showMobileControls, setShowMobileControls] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return (
+        'ontouchstart' in window ||
+        navigator.maxTouchPoints > 0 ||
+        window.innerWidth <= 1024
+      );
+    }
+    return false;
+  });
 
   const [quest, setQuest] = useState<QuestState>({
     hasChalk: false,
@@ -181,7 +191,7 @@ export default function App() {
             </p>
 
             {/* Controls Overview Card */}
-            <div className="bg-zinc-900/70 backdrop-blur border border-zinc-800 rounded-lg p-4 mb-8 text-xs text-zinc-300 grid grid-cols-2 sm:grid-cols-5 gap-3">
+            <div className="bg-zinc-900/70 backdrop-blur border border-zinc-800 rounded-lg p-4 mb-4 text-xs text-zinc-300 grid grid-cols-2 sm:grid-cols-5 gap-3">
               <div>
                 <span className="text-zinc-500 block font-mono">Движение</span>
                 <span className="font-semibold text-zinc-200">WASD / Стрелки</span>
@@ -202,6 +212,16 @@ export default function App() {
                 <span className="text-zinc-500 block font-mono">Отвлечение шумом</span>
                 <span className="font-semibold text-zinc-200">[R] / ПКМ Бросок</span>
               </div>
+            </div>
+
+            {/* Mobile Controls Notice Banner */}
+            <div className="bg-zinc-900/60 border border-amber-500/30 rounded-lg px-4 py-2 mb-8 text-[11px] text-amber-200/90 font-mono flex items-center gap-2.5">
+              <span className="px-1.5 py-0.5 bg-amber-500/20 rounded text-[10px] text-amber-300 font-bold uppercase shrink-0">
+                📱 На телефоне
+              </span>
+              <span>
+                Виджеты активны: 3D-джойстик ходьбы и бега (в край = спринт), тачпад поворота головы 360°, развороты 90°/180° и кнопки действий.
+              </span>
             </div>
 
             {/* Primary Action Buttons */}
@@ -278,6 +298,12 @@ export default function App() {
             onRestart={startNewGame}
             isGameOver={isGameOver}
             isEscaped={isEscaped}
+            showMobileControls={showMobileControls}
+            onToggleMobileControls={() => setShowMobileControls((prev) => !prev)}
+            onMove={(x, y) => engineRef.current?.setTouchMove(x, y)}
+            onRotateCamera={(yaw, pitch) => engineRef.current?.rotateCamera(yaw, pitch)}
+            onSnapRotate={(deg) => engineRef.current?.snapRotate(deg)}
+            onToggleCrouch={() => engineRef.current?.toggleCrouch()}
           />
         </div>
       )}

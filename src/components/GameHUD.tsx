@@ -14,10 +14,12 @@ import {
   Compass,
   Footprints,
   Sun,
-  Download
+  Download,
+  Smartphone
 } from 'lucide-react';
 import { PlayerStats, QuestState, GhostState } from '../types/game';
 import { horrorAudio } from '../audio/horrorAudio';
+import { MobileControls } from './MobileControls';
 
 interface GameHUDProps {
   stats: PlayerStats;
@@ -42,6 +44,12 @@ interface GameHUDProps {
   onRestart: () => void;
   isGameOver: boolean;
   isEscaped: boolean;
+  onMove?: (x: number, y: number) => void;
+  onRotateCamera?: (deltaYaw: number, deltaPitch: number) => void;
+  onSnapRotate?: (degrees: number) => void;
+  onToggleCrouch?: () => void;
+  showMobileControls?: boolean;
+  onToggleMobileControls?: () => void;
 }
 
 export const GameHUD: React.FC<GameHUDProps> = ({
@@ -67,6 +75,12 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   onRestart,
   isGameOver,
   isEscaped,
+  onMove,
+  onRotateCamera,
+  onSnapRotate,
+  onToggleCrouch,
+  showMobileControls = false,
+  onToggleMobileControls,
 }) => {
   const [isMuted, setIsMuted] = useState(horrorAudio.getIsMuted());
 
@@ -180,6 +194,21 @@ export const GameHUD: React.FC<GameHUDProps> = ({
           >
             {isMuted ? <VolumeX className="w-4 h-4 text-red-400" /> : <Volume2 className="w-4 h-4" />}
           </button>
+          {onToggleMobileControls && (
+            <button
+              onClick={onToggleMobileControls}
+              className={`px-2.5 py-1.5 border rounded text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5 transition-colors cursor-pointer ${
+                showMobileControls
+                  ? 'bg-amber-950/80 border-amber-500/90 text-amber-200 ring-1 ring-amber-500/50'
+                  : 'bg-black/60 hover:bg-zinc-900 border-zinc-800 text-zinc-400'
+              }`}
+              title="Переключить мобильные виджеты (виртуальный джойстик, поворот головы, кнопки бега)"
+            >
+              <Smartphone className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden sm:inline">Виджеты:</span>
+              <span className="text-[10px] font-mono">{showMobileControls ? 'ВКЛ' : 'ВЫКЛ'}</span>
+            </button>
+          )}
           {onDownloadGame && (
             <button
               onClick={onDownloadGame}
@@ -221,168 +250,247 @@ export const GameHUD: React.FC<GameHUDProps> = ({
         )}
       </div>
 
-      {/* Bottom HUD: Status Bars & Quick Controls */}
-      <div className="absolute bottom-6 left-6 right-6 flex flex-col md:flex-row items-end md:items-center justify-between gap-4 pointer-events-auto">
-        {/* Left: Vitals (Heart BPM, Breath, Noise, Flashlight) */}
-        <div className="bg-black/75 backdrop-blur-md border border-zinc-800/80 rounded-lg p-3.5 flex items-center gap-5 text-xs shadow-2xl">
+      {/* Top Mobile Vitals Bar (shown when mobile widgets active so bottom screen is clear for joystick & lookpad) */}
+      {showMobileControls && (
+        <div className="absolute top-20 left-4 right-4 flex items-center justify-between bg-black/85 backdrop-blur-md border border-zinc-800/90 rounded-lg px-3 py-1.5 text-xs shadow-2xl pointer-events-auto max-w-xl mx-auto gap-2.5">
           {/* BPM */}
-          <div className="flex items-center gap-2">
-            <Heart className={`w-4 h-4 text-red-500 ${stats.bpm > 100 ? 'animate-heartbeat' : ''}`} />
-            <div>
-              <div className="text-[10px] text-zinc-500 uppercase font-mono">Пульс</div>
-              <div className="font-mono font-bold text-zinc-200 tabular-nums">
-                {stats.bpm} <span className="text-[10px] text-zinc-500 font-normal">BPM</span>
-              </div>
-            </div>
+          <div className="flex items-center gap-1.5">
+            <Heart className={`w-3.5 h-3.5 text-red-500 ${stats.bpm > 100 ? 'animate-heartbeat' : ''}`} />
+            <span className="font-mono font-bold text-zinc-200 tabular-nums text-[11px]">{stats.bpm}</span>
           </div>
 
-          <div className="w-px h-8 bg-zinc-800" />
-
-          {/* Noise Meter */}
-          <div>
-            <div className="flex items-center justify-between text-[10px] text-zinc-500 uppercase font-mono mb-1">
-              <span className="flex items-center gap-1">
-                <Footprints className="w-3 h-3 text-amber-500" />
-                Шум
-              </span>
-              <span className="tabular-nums font-mono text-zinc-400">{Math.round(stats.noise)}%</span>
-            </div>
-            <div className="w-24 h-2 bg-zinc-900 rounded overflow-hidden border border-zinc-800">
+          {/* Noise */}
+          <div className="flex items-center gap-1.5 flex-1 max-w-[90px]">
+            <Footprints className="w-3 h-3 text-amber-500 shrink-0" />
+            <div className="w-full h-1.5 bg-zinc-900 rounded overflow-hidden border border-zinc-800">
               <div 
-                className={`h-full transition-all duration-75 ${stats.noise > 60 ? 'bg-red-500' : stats.noise > 30 ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                className={`h-full ${stats.noise > 60 ? 'bg-red-500' : stats.noise > 30 ? 'bg-amber-500' : 'bg-emerald-500'}`}
                 style={{ width: `${Math.min(100, stats.noise)}%` }}
               />
             </div>
+            <span className="text-[10px] font-mono text-zinc-400 tabular-nums shrink-0">{Math.round(stats.noise)}%</span>
           </div>
 
-          <div className="w-px h-8 bg-zinc-800" />
-
-          {/* Breath / Oxygen */}
-          <div>
-            <div className="flex items-center justify-between text-[10px] text-zinc-500 uppercase font-mono mb-1">
-              <span className="flex items-center gap-1">
-                <Wind className="w-3 h-3 text-cyan-400" />
-                Воздух
-              </span>
-              <span className="tabular-nums font-mono text-zinc-400">{Math.round(stats.breath)}%</span>
-            </div>
-            <div className="w-24 h-2 bg-zinc-900 rounded overflow-hidden border border-zinc-800">
+          {/* Oxygen / Breath */}
+          <div className="flex items-center gap-1.5 flex-1 max-w-[90px]">
+            <Wind className="w-3 h-3 text-cyan-400 shrink-0" />
+            <div className="w-full h-1.5 bg-zinc-900 rounded overflow-hidden border border-zinc-800">
               <div 
-                className="h-full bg-cyan-400 transition-all duration-75"
+                className="h-full bg-cyan-400"
                 style={{ width: `${Math.min(100, stats.breath)}%` }}
               />
             </div>
+            <span className="text-[10px] font-mono text-zinc-400 tabular-nums shrink-0">{Math.round(stats.breath)}%</span>
           </div>
 
-          <div className="w-px h-8 bg-zinc-800" />
-
-          {/* Stamina / Sprint meter */}
-          <div>
-            <div className="flex items-center justify-between text-[10px] text-zinc-500 uppercase font-mono mb-1">
-              <span className="flex items-center gap-1">
-                <Footprints className={`w-3 h-3 ${stats.isSprinting ? 'text-amber-400 animate-bounce' : 'text-emerald-400'}`} />
-                Выносливость
-              </span>
-              <span className="tabular-nums font-mono text-zinc-400">{Math.round(stats.stamina)}%</span>
-            </div>
-            <div className="w-24 h-2 bg-zinc-900 rounded overflow-hidden border border-zinc-800">
+          {/* Stamina */}
+          <div className="flex items-center gap-1.5 flex-1 max-w-[90px]">
+            <Zap className="w-3 h-3 text-emerald-400 shrink-0" />
+            <div className="w-full h-1.5 bg-zinc-900 rounded overflow-hidden border border-zinc-800">
               <div 
-                className={`h-full transition-all duration-75 ${
-                  stats.isSprinting ? 'bg-amber-400 animate-pulse' : stats.stamina > 30 ? 'bg-emerald-400' : 'bg-red-500 animate-pulse'
-                }`}
+                className={`h-full ${stats.isSprinting ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'}`}
                 style={{ width: `${Math.min(100, stats.stamina)}%` }}
               />
             </div>
+            <span className="text-[10px] font-mono text-zinc-400 tabular-nums shrink-0">{Math.round(stats.stamina)}%</span>
           </div>
 
-          <div className="w-px h-8 bg-zinc-800" />
-
           {/* Battery */}
-          <div className="flex items-center gap-2">
-            <Zap className={`w-4 h-4 ${stats.battery > 20 ? 'text-amber-400' : 'text-red-500 animate-pulse'}`} />
+          <div className="flex items-center gap-1 shrink-0">
+            <span className="text-[10px] font-mono text-amber-400 tabular-nums">⚡ {Math.round(stats.battery)}%</span>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile On-Screen Widgets (Touch Joystick, Head Turn Lookpad, Snap Rotate, Mobile Actions) */}
+      {showMobileControls && onMove && onRotateCamera && onSnapRotate && (
+        <MobileControls
+          onMove={onMove}
+          onRotateCamera={onRotateCamera}
+          onSnapRotate={onSnapRotate}
+          onToggleFlashlight={onToggleFlashlight}
+          onToggleSprint={onToggleSprint || (() => {})}
+          onSprintHoldStart={onSprintHoldStart || (() => {})}
+          onSprintHoldEnd={onSprintHoldEnd || (() => {})}
+          onHoldBreathStart={onHoldBreathStart}
+          onHoldBreathEnd={onHoldBreathEnd}
+          onToggleCrouch={onToggleCrouch || (() => {})}
+          onInteract={onInteract}
+          onThrowItem={onThrowItem}
+          isFlashlightOn={stats.isFlashlightOn}
+          isSprinting={stats.isSprinting}
+          isCrouching={stats.isCrouching}
+          isHoldingBreath={stats.isHoldingBreath}
+          canThrow={!!heldThrowable}
+          hasInteractPrompt={!!interactPrompt}
+          interactPromptText={interactPrompt}
+        />
+      )}
+
+      {/* Bottom HUD: Status Bars & Quick Controls (Displayed on Desktop / when mobile widgets toggled off) */}
+      {!showMobileControls && (
+        <div className="absolute bottom-6 left-6 right-6 flex flex-col md:flex-row items-end md:items-center justify-between gap-4 pointer-events-auto">
+          {/* Left: Vitals (Heart BPM, Breath, Noise, Flashlight) */}
+          <div className="bg-black/75 backdrop-blur-md border border-zinc-800/80 rounded-lg p-3.5 flex items-center gap-5 text-xs shadow-2xl">
+            {/* BPM */}
+            <div className="flex items-center gap-2">
+              <Heart className={`w-4 h-4 text-red-500 ${stats.bpm > 100 ? 'animate-heartbeat' : ''}`} />
+              <div>
+                <div className="text-[10px] text-zinc-500 uppercase font-mono">Пульс</div>
+                <div className="font-mono font-bold text-zinc-200 tabular-nums">
+                  {stats.bpm} <span className="text-[10px] text-zinc-500 font-normal">BPM</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="w-px h-8 bg-zinc-800" />
+
+            {/* Noise Meter */}
             <div>
-              <div className="text-[10px] text-zinc-500 uppercase font-mono">Батарея</div>
-              <div className="font-mono font-bold text-zinc-200 tabular-nums">
-                {Math.round(stats.battery)}%
+              <div className="flex items-center justify-between text-[10px] text-zinc-500 uppercase font-mono mb-1">
+                <span className="flex items-center gap-1">
+                  <Footprints className="w-3 h-3 text-amber-500" />
+                  Шум
+                </span>
+                <span className="tabular-nums font-mono text-zinc-400">{Math.round(stats.noise)}%</span>
+              </div>
+              <div className="w-24 h-2 bg-zinc-900 rounded overflow-hidden border border-zinc-800">
+                <div 
+                  className={`h-full transition-all duration-75 ${stats.noise > 60 ? 'bg-red-500' : stats.noise > 30 ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                  style={{ width: `${Math.min(100, stats.noise)}%` }}
+                />
+              </div>
+            </div>
+
+            <div className="w-px h-8 bg-zinc-800" />
+
+            {/* Breath / Oxygen */}
+            <div>
+              <div className="flex items-center justify-between text-[10px] text-zinc-500 uppercase font-mono mb-1">
+                <span className="flex items-center gap-1">
+                  <Wind className="w-3 h-3 text-cyan-400" />
+                  Воздух
+                </span>
+                <span className="tabular-nums font-mono text-zinc-400">{Math.round(stats.breath)}%</span>
+              </div>
+              <div className="w-24 h-2 bg-zinc-900 rounded overflow-hidden border border-zinc-800">
+                <div 
+                  className="h-full bg-cyan-400 transition-all duration-75"
+                  style={{ width: `${Math.min(100, stats.breath)}%` }}
+                />
+              </div>
+            </div>
+
+            <div className="w-px h-8 bg-zinc-800" />
+
+            {/* Stamina / Sprint meter */}
+            <div>
+              <div className="flex items-center justify-between text-[10px] text-zinc-500 uppercase font-mono mb-1">
+                <span className="flex items-center gap-1">
+                  <Footprints className={`w-3 h-3 ${stats.isSprinting ? 'text-amber-400 animate-bounce' : 'text-emerald-400'}`} />
+                  Выносливость
+                </span>
+                <span className="tabular-nums font-mono text-zinc-400">{Math.round(stats.stamina)}%</span>
+              </div>
+              <div className="w-24 h-2 bg-zinc-900 rounded overflow-hidden border border-zinc-800">
+                <div 
+                  className={`h-full transition-all duration-75 ${
+                    stats.isSprinting ? 'bg-amber-400 animate-pulse' : stats.stamina > 30 ? 'bg-emerald-400' : 'bg-red-500 animate-pulse'
+                  }`}
+                  style={{ width: `${Math.min(100, stats.stamina)}%` }}
+                />
+              </div>
+            </div>
+
+            <div className="w-px h-8 bg-zinc-800" />
+
+            {/* Battery */}
+            <div className="flex items-center gap-2">
+              <Zap className={`w-4 h-4 ${stats.battery > 20 ? 'text-amber-400' : 'text-red-500 animate-pulse'}`} />
+              <div>
+                <div className="text-[10px] text-zinc-500 uppercase font-mono">Батарея</div>
+                <div className="font-mono font-bold text-zinc-200 tabular-nums">
+                  {Math.round(stats.battery)}%
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Center / Right: Inventory & Action Triggers */}
-        <div className="flex items-center gap-2 bg-black/75 backdrop-blur-md border border-zinc-800/80 rounded-lg p-2 text-xs shadow-2xl">
-          {/* Throwable item slot */}
-          <div className="px-3 py-1.5 bg-zinc-900 border border-zinc-700 rounded flex items-center gap-2">
-            <span className="text-[10px] text-zinc-400 uppercase font-mono">Предмет:</span>
-            <span className="font-semibold text-zinc-200">
-              {heldThrowable ? heldThrowable : 'Пусто'}
-            </span>
-          </div>
+          {/* Center / Right: Inventory & Action Triggers */}
+          <div className="flex items-center gap-2 bg-black/75 backdrop-blur-md border border-zinc-800/80 rounded-lg p-2 text-xs shadow-2xl">
+            {/* Throwable item slot */}
+            <div className="px-3 py-1.5 bg-zinc-900 border border-zinc-700 rounded flex items-center gap-2">
+              <span className="text-[10px] text-zinc-400 uppercase font-mono">Предмет:</span>
+              <span className="font-semibold text-zinc-200">
+                {heldThrowable ? heldThrowable : 'Пусто'}
+              </span>
+            </div>
 
-          {heldThrowable && (
+            {heldThrowable && (
+              <button
+                onClick={onThrowItem}
+                className="px-3 py-1.5 bg-red-950/70 hover:bg-red-900 border border-red-700/80 text-red-200 rounded font-semibold text-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                Бросить [R]
+              </button>
+            )}
+
+            {/* SPRINT BUTTON (Click/Touch or Key Shift/Q) */}
             <button
-              onClick={onThrowItem}
-              className="px-3 py-1.5 bg-red-950/70 hover:bg-red-900 border border-red-700/80 text-red-200 rounded font-semibold text-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+              onClick={onToggleSprint}
+              onMouseDown={onSprintHoldStart}
+              onMouseUp={onSprintHoldEnd}
+              onTouchStart={onSprintHoldStart}
+              onTouchEnd={onSprintHoldEnd}
+              className={`px-3 py-1.5 border rounded font-semibold text-xs transition-all flex items-center gap-1.5 cursor-pointer ${
+                stats.isSprinting
+                  ? 'bg-amber-500/25 border-amber-400 text-amber-200 shadow-lg shadow-amber-950/50 ring-1 ring-amber-400'
+                  : stats.stamina < 10
+                  ? 'bg-zinc-900 border-zinc-800 text-zinc-500 opacity-60'
+                  : 'bg-zinc-900 hover:bg-zinc-800 border-zinc-700 text-zinc-300'
+              }`}
+              title="Зажмите Shift или нажмите Q для быстрого бега"
             >
-              Бросить [R]
+              <Footprints className={`w-3.5 h-3.5 ${stats.isSprinting ? 'text-amber-400 animate-bounce' : 'text-zinc-400'}`} />
+              <span>{stats.isSprinting ? 'Бег [АКТИВЕН]' : 'Бег [Shift / Q]'}</span>
             </button>
-          )}
 
-          {/* SPRINT BUTTON (Click/Touch or Key Shift/Q) */}
-          <button
-            onClick={onToggleSprint}
-            onMouseDown={onSprintHoldStart}
-            onMouseUp={onSprintHoldEnd}
-            onTouchStart={onSprintHoldStart}
-            onTouchEnd={onSprintHoldEnd}
-            className={`px-3 py-1.5 border rounded font-semibold text-xs transition-all flex items-center gap-1.5 cursor-pointer ${
-              stats.isSprinting
-                ? 'bg-amber-500/25 border-amber-400 text-amber-200 shadow-lg shadow-amber-950/50 ring-1 ring-amber-400'
-                : stats.stamina < 10
-                ? 'bg-zinc-900 border-zinc-800 text-zinc-500 opacity-60'
-                : 'bg-zinc-900 hover:bg-zinc-800 border-zinc-700 text-zinc-300'
-            }`}
-            title="Зажмите Shift или нажмите Q для быстрого бега"
-          >
-            <Footprints className={`w-3.5 h-3.5 ${stats.isSprinting ? 'text-amber-400 animate-bounce' : 'text-zinc-400'}`} />
-            <span>{stats.isSprinting ? 'Бег [АКТИВЕН]' : 'Бег [Shift / Q]'}</span>
-          </button>
+            <button
+              onClick={onToggleFlashlight}
+              className={`px-3 py-1.5 border rounded font-semibold text-xs transition-colors flex items-center gap-1.5 cursor-pointer ${
+                stats.isFlashlightOn 
+                  ? 'bg-amber-950/60 border-amber-500/80 text-amber-200' 
+                  : 'bg-zinc-900 border-zinc-700 text-zinc-400'
+              }`}
+            >
+              <Flashlight className="w-3.5 h-3.5" />
+              Фонарь [F]
+            </button>
 
-          <button
-            onClick={onToggleFlashlight}
-            className={`px-3 py-1.5 border rounded font-semibold text-xs transition-colors flex items-center gap-1.5 cursor-pointer ${
-              stats.isFlashlightOn 
-                ? 'bg-amber-950/60 border-amber-500/80 text-amber-200' 
-                : 'bg-zinc-900 border-zinc-700 text-zinc-400'
-            }`}
-          >
-            <Flashlight className="w-3.5 h-3.5" />
-            Фонарь [F]
-          </button>
+            <button
+              onMouseDown={onHoldBreathStart}
+              onMouseUp={onHoldBreathEnd}
+              onTouchStart={onHoldBreathStart}
+              onTouchEnd={onHoldBreathEnd}
+              className={`px-3 py-1.5 border rounded font-semibold text-xs transition-colors flex items-center gap-1.5 cursor-pointer ${
+                stats.isHoldingBreath
+                  ? 'bg-cyan-950/80 border-cyan-400 text-cyan-200'
+                  : 'bg-zinc-900 border-zinc-700 text-zinc-300'
+              }`}
+            >
+              <Wind className="w-3.5 h-3.5" />
+              Затаить дыхание [Пробел]
+            </button>
 
-          <button
-            onMouseDown={onHoldBreathStart}
-            onMouseUp={onHoldBreathEnd}
-            onTouchStart={onHoldBreathStart}
-            onTouchEnd={onHoldBreathEnd}
-            className={`px-3 py-1.5 border rounded font-semibold text-xs transition-colors flex items-center gap-1.5 cursor-pointer ${
-              stats.isHoldingBreath
-                ? 'bg-cyan-950/80 border-cyan-400 text-cyan-200'
-                : 'bg-zinc-900 border-zinc-700 text-zinc-300'
-            }`}
-          >
-            <Wind className="w-3.5 h-3.5" />
-            Затаить дыхание [Пробел]
-          </button>
-
-          <button
-            onClick={onInteract}
-            className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 text-white rounded font-semibold text-xs transition-colors cursor-pointer"
-          >
-            Действие [E]
-          </button>
+            <button
+              onClick={onInteract}
+              className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 text-white rounded font-semibold text-xs transition-colors cursor-pointer"
+            >
+              Действие [E]
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Game Over Screen */}
       {isGameOver && (

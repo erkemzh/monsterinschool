@@ -73,6 +73,12 @@ export class ForgottenWingEngine {
   private isSprintToggled = false;
   private headBobTimer = 0;
 
+  // Touch & Mobile Virtual Controls
+  private touchMove = { x: 0, y: 0 };
+  private canvasTouchId: number | null = null;
+  private lastTouchX = 0;
+  private lastTouchY = 0;
+
   // Keys
   private keys: Record<string, boolean> = {
     KeyW: false,
@@ -1140,7 +1146,46 @@ export class ForgottenWingEngine {
       this.cameraPitch -= e.movementY * sensitivity;
       this.cameraPitch = Math.max(-Math.PI / 2.3, Math.min(Math.PI / 2.3, this.cameraPitch));
     });
+
+    // Touch controls on canvas for looking / turning head on mobile
+    canvas.addEventListener('touchstart', this.handleCanvasTouchStart, { passive: true });
+    canvas.addEventListener('touchmove', this.handleCanvasTouchMove, { passive: true });
+    canvas.addEventListener('touchend', this.handleCanvasTouchEnd, { passive: true });
+    canvas.addEventListener('touchcancel', this.handleCanvasTouchEnd, { passive: true });
   }
+
+  private handleCanvasTouchStart = (e: TouchEvent) => {
+    horrorAudio.resume();
+    if (e.targetTouches.length > 0 && this.canvasTouchId === null) {
+      const touch = e.targetTouches[0];
+      this.canvasTouchId = touch.identifier;
+      this.lastTouchX = touch.clientX;
+      this.lastTouchY = touch.clientY;
+    }
+  };
+
+  private handleCanvasTouchMove = (e: TouchEvent) => {
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      const touch = e.changedTouches[i];
+      if (touch.identifier === this.canvasTouchId) {
+        const dx = touch.clientX - this.lastTouchX;
+        const dy = touch.clientY - this.lastTouchY;
+        this.lastTouchX = touch.clientX;
+        this.lastTouchY = touch.clientY;
+        this.rotateCamera(dx * 0.0035, dy * 0.0035);
+        break;
+      }
+    }
+  };
+
+  private handleCanvasTouchEnd = (e: TouchEvent) => {
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      if (e.changedTouches[i].identifier === this.canvasTouchId) {
+        this.canvasTouchId = null;
+        break;
+      }
+    }
+  };
 
   private handleKeyDown = (e: KeyboardEvent) => {
     horrorAudio.resume();
@@ -1446,6 +1491,32 @@ export class ForgottenWingEngine {
     this.keys.ShiftRight = sprint;
   }
 
+  public setTouchMove(x: number, y: number) {
+    this.touchMove.x = Math.max(-1, Math.min(1, x));
+    this.touchMove.y = Math.max(-1, Math.min(1, y));
+  }
+
+  public rotateCamera(deltaYaw: number, deltaPitch: number) {
+    this.cameraYaw -= deltaYaw;
+    this.cameraPitch -= deltaPitch;
+    this.cameraPitch = Math.max(-Math.PI / 2.3, Math.min(Math.PI / 2.3, this.cameraPitch));
+  }
+
+  public snapRotate(degrees: number) {
+    this.cameraYaw += (degrees * Math.PI) / 180;
+  }
+
+  public toggleCrouch() {
+    this.isCrouching = !this.isCrouching;
+    this.callbacks.onNotification(
+      this.isCrouching ? '« ТЫ ПРИСЕЛ (ШАГИ ТИШЕ) »' : '« ТЫ ВСТАЛ ВО ВЕСЬ РОСТ »'
+    );
+  }
+
+  public setCrouching(crouch: boolean) {
+    this.isCrouching = crouch;
+  }
+
   private startLoop() {
     const animate = () => {
       this.animationFrameId = requestAnimationFrame(animate);
@@ -1484,8 +1555,15 @@ export class ForgottenWingEngine {
     if (this.keys.KeyA || this.keys.ArrowLeft) moveDir.x -= 1;
     if (this.keys.KeyD || this.keys.ArrowRight) moveDir.x += 1;
 
+    // Apply mobile virtual joystick input
+    if (Math.abs(this.touchMove.x) > 0.04 || Math.abs(this.touchMove.y) > 0.04) {
+      moveDir.x += this.touchMove.x;
+      moveDir.z += this.touchMove.y;
+    }
+
     const isMoving = moveDir.lengthSq() > 0;
-    const wantsSprint = this.keys.ShiftLeft || this.keys.ShiftRight || this.isSprintToggled;
+    const isTouchSprintZone = (this.touchMove.x * this.touchMove.x + this.touchMove.y * this.touchMove.y) > 0.65;
+    const wantsSprint = this.keys.ShiftLeft || this.keys.ShiftRight || this.isSprintToggled || isTouchSprintZone;
     this.isSprinting = wantsSprint && isMoving && this.stamina > 4 && !this.isCrouching;
 
     if (this.isSprintToggled && this.stamina <= 0) {
@@ -1874,6 +1952,13 @@ export class ForgottenWingEngine {
     window.removeEventListener('keyup', this.handleKeyUp);
     window.removeEventListener('resize', this.handleResize);
     this.monsterMixer?.stopAllAction();
+    const canvas = this.renderer?.domElement;
+    if (canvas) {
+      canvas.removeEventListener('touchstart', this.handleCanvasTouchStart);
+      canvas.removeEventListener('touchmove', this.handleCanvasTouchMove);
+      canvas.removeEventListener('touchend', this.handleCanvasTouchEnd);
+      canvas.removeEventListener('touchcancel', this.handleCanvasTouchEnd);
+    }
     this.renderer?.dispose();
     if (this.container && this.renderer?.domElement) {
       this.container.removeChild(this.renderer.domElement);
