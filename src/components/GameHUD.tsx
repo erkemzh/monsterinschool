@@ -15,11 +15,14 @@ import {
   Footprints,
   Sun,
   Download,
-  Smartphone
+  Smartphone,
+  Activity
 } from 'lucide-react';
 import { PlayerStats, QuestState, GhostState } from '../types/game';
 import { horrorAudio } from '../audio/horrorAudio';
 import { MobileControls } from './MobileControls';
+import { TelemetryTabModal } from './TelemetryTabModal';
+import { PWAInstallButton } from './PWAInstallButton';
 
 interface GameHUDProps {
   stats: PlayerStats;
@@ -83,6 +86,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   onToggleMobileControls,
 }) => {
   const [isMuted, setIsMuted] = useState(horrorAudio.getIsMuted());
+  const [isTelemetryOpen, setIsTelemetryOpen] = useState(false);
 
   const handleToggleMute = () => {
     const state = horrorAudio.toggleMute();
@@ -120,9 +124,9 @@ export const GameHUD: React.FC<GameHUDProps> = ({
       )}
 
       {/* Top Bar HUD */}
-      <div className="absolute top-4 left-4 right-4 flex items-center justify-between pointer-events-auto">
-        {/* Left: Quest Checklist */}
-        <div className="bg-black/75 backdrop-blur-md border border-zinc-800/80 rounded px-4 py-3 text-xs max-w-xs text-zinc-300 shadow-2xl">
+      <div className="absolute top-4 left-4 right-4 flex items-center justify-between pointer-events-auto gap-2">
+        {/* Left: Quest Checklist (Compact on mobile) */}
+        <div className="bg-black/75 backdrop-blur-md border border-zinc-800/80 rounded px-3 py-2 sm:px-4 sm:py-3 text-xs max-w-xs text-zinc-300 shadow-2xl hidden sm:block">
           <div className="flex items-center gap-2 font-cinzel text-red-400 font-bold tracking-wider uppercase mb-1">
             <Compass className="w-3.5 h-3.5" />
             <span>« АРХИВ 1974 · ПЕЧАТИ »</span>
@@ -157,23 +161,36 @@ export const GameHUD: React.FC<GameHUDProps> = ({
 
         {/* Center: Hunt Status Banner */}
         {isHunt && (
-          <div className="animate-pulse bg-red-950/95 border-2 border-red-500 px-6 py-2.5 rounded text-center shadow-2xl shadow-red-950">
-            <span className="font-cinzel text-red-300 text-sm md:text-base font-black tracking-widest uppercase flex items-center gap-2">
-              <ShieldAlert className="w-5 h-5 text-red-500 animate-spin" />
-              « ТЕНЬ ПРОБУДИЛАСЬ! ОНА СЛЫШИТ ТВОЙ СТРАХ! »
-            </span>
-            <span className="text-[10px] text-zinc-300 font-mono block mt-0.5 tracking-wide">
-              Не свети фонарём · Замри в тени шкафа · Не дыши [Пробел]
+          <div className="animate-pulse bg-red-950/95 border-2 border-red-500 px-4 py-1.5 sm:px-6 sm:py-2.5 rounded text-center shadow-2xl shadow-red-950">
+            <span className="font-cinzel text-red-300 text-xs sm:text-base font-black tracking-widest uppercase flex items-center gap-1.5 justify-center">
+              <ShieldAlert className="w-4 h-4 sm:w-5 sm:h-5 text-red-500 animate-spin" />
+              « ТЕНЬ ПРОБУДИЛАСЬ! ОНА СЛЫШИТ ТЕБЯ! »
             </span>
           </div>
         )}
 
-        {/* Right: Quick actions, Brightness & Audio toggle */}
-        <div className="flex items-center gap-2">
+        {/* Right: Telemetry Tab, PWA Install, Brightness, Audio, GDD */}
+        <div className="flex items-center gap-1.5 sm:gap-2 ml-auto">
+          {/* TAB BUTTON: All Data (Air / Breath, Footsteps Noise, BPM, Battery, etc.) */}
+          <button
+            onClick={() => setIsTelemetryOpen(true)}
+            className="px-2.5 py-1.5 bg-gradient-to-r from-red-950/90 to-zinc-900 hover:from-red-900 border border-red-600/80 active:border-red-400 rounded text-xs font-semibold uppercase tracking-wider text-red-200 hover:text-white flex items-center gap-1.5 transition-all shadow-lg shadow-red-950/50 cursor-pointer"
+            title="Открыть вкладку с датчиками: воздух, шум шагов, пульс, заряд батареи"
+          >
+            <Activity className="w-3.5 h-3.5 text-red-400 animate-pulse" />
+            <span className="font-mono font-bold">📊 ДАТЧИКИ</span>
+            {(stats.breath < 30 || stats.noise > 60 || stats.battery < 20) && (
+              <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+            )}
+          </button>
+
+          {/* PWA Mobile App Install Button */}
+          <PWAInstallButton />
+
           {/* Brightness / Gamma adjustment */}
-          <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-black/60 border border-zinc-800 rounded text-xs text-zinc-300">
+          <div className="hidden md:flex items-center gap-1.5 px-2 py-1 bg-black/60 border border-zinc-800 rounded text-xs text-zinc-300">
             <Sun className="w-3.5 h-3.5 text-amber-400" />
-            <span className="text-[10px] font-mono text-zinc-400 hidden sm:inline">Свет:</span>
+            <span className="text-[10px] font-mono text-zinc-400">Свет:</span>
             <input
               type="range"
               min="0.8"
@@ -181,50 +198,51 @@ export const GameHUD: React.FC<GameHUDProps> = ({
               step="0.1"
               value={brightness}
               onChange={(e) => onSetBrightness(parseFloat(e.target.value))}
-              className="w-16 h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-amber-400"
+              className="w-14 h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-amber-400"
               title="Регулировка яркости"
             />
-            <span className="text-[10px] font-mono tabular-nums text-amber-300">{brightness.toFixed(1)}x</span>
           </div>
 
           <button
             onClick={handleToggleMute}
-            className="p-2 bg-black/60 hover:bg-black/90 text-zinc-400 hover:text-zinc-200 border border-zinc-800 rounded transition-colors"
+            className="p-1.5 sm:p-2 bg-black/60 hover:bg-black/90 text-zinc-400 hover:text-zinc-200 border border-zinc-800 rounded transition-colors"
             title="Звук"
           >
             {isMuted ? <VolumeX className="w-4 h-4 text-red-400" /> : <Volume2 className="w-4 h-4" />}
           </button>
+
           {onToggleMobileControls && (
             <button
               onClick={onToggleMobileControls}
-              className={`px-2.5 py-1.5 border rounded text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5 transition-colors cursor-pointer ${
+              className={`px-2 py-1.5 border rounded text-xs font-semibold uppercase tracking-wider flex items-center gap-1 transition-colors cursor-pointer ${
                 showMobileControls
                   ? 'bg-amber-950/80 border-amber-500/90 text-amber-200 ring-1 ring-amber-500/50'
                   : 'bg-black/60 hover:bg-zinc-900 border-zinc-800 text-zinc-400'
               }`}
-              title="Переключить мобильные виджеты (виртуальный джойстик, поворот головы, кнопки бега)"
+              title="Переключить мобильные виджеты (виртуальный джойстик, сенсорный обзор, кнопки)"
             >
               <Smartphone className="w-3.5 h-3.5 text-amber-400" />
-              <span className="hidden sm:inline">Виджеты:</span>
-              <span className="text-[10px] font-mono">{showMobileControls ? 'ВКЛ' : 'ВЫКЛ'}</span>
+              <span className="text-[10px] font-mono">{showMobileControls ? 'ВИДЖЕТЫ: ВКЛ' : 'ВЫКЛ'}</span>
             </button>
           )}
+
           {onDownloadGame && (
             <button
               onClick={onDownloadGame}
-              className="px-2.5 py-1.5 bg-black/60 hover:bg-zinc-900 text-zinc-300 hover:text-white border border-zinc-800 rounded text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5 transition-colors cursor-pointer"
-              title="Скачать готовый файл всей игры (.html)"
+              className="hidden lg:flex px-2 py-1.5 bg-black/60 hover:bg-zinc-900 text-zinc-300 hover:text-white border border-zinc-800 rounded text-xs font-semibold uppercase tracking-wider items-center gap-1 transition-colors cursor-pointer"
+              title="Скачать готовый автономный .html файл игры"
             >
               <Download className="w-3.5 h-3.5 text-amber-400" />
-              <span className="hidden sm:inline">Файл игры</span>
+              <span>HTML</span>
             </button>
           )}
+
           <button
             onClick={onOpenGdd}
-            className="px-3 py-1.5 bg-black/60 hover:bg-zinc-900 text-zinc-300 hover:text-white border border-zinc-800 rounded text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5 transition-colors"
+            className="px-2.5 py-1.5 bg-black/60 hover:bg-zinc-900 text-zinc-300 hover:text-white border border-zinc-800 rounded text-xs font-semibold uppercase tracking-wider flex items-center gap-1 transition-colors"
           >
             <BookOpen className="w-3.5 h-3.5 text-red-400" />
-            Досье GDD
+            <span className="hidden sm:inline">GDD</span>
           </button>
         </div>
       </div>
@@ -250,57 +268,16 @@ export const GameHUD: React.FC<GameHUDProps> = ({
         )}
       </div>
 
-      {/* Top Mobile Vitals Bar (shown when mobile widgets active so bottom screen is clear for joystick & lookpad) */}
-      {showMobileControls && (
-        <div className="absolute top-20 left-4 right-4 flex items-center justify-between bg-black/85 backdrop-blur-md border border-zinc-800/90 rounded-lg px-3 py-1.5 text-xs shadow-2xl pointer-events-auto max-w-xl mx-auto gap-2.5">
-          {/* BPM */}
-          <div className="flex items-center gap-1.5">
-            <Heart className={`w-3.5 h-3.5 text-red-500 ${stats.bpm > 100 ? 'animate-heartbeat' : ''}`} />
-            <span className="font-mono font-bold text-zinc-200 tabular-nums text-[11px]">{stats.bpm}</span>
-          </div>
-
-          {/* Noise */}
-          <div className="flex items-center gap-1.5 flex-1 max-w-[90px]">
-            <Footprints className="w-3 h-3 text-amber-500 shrink-0" />
-            <div className="w-full h-1.5 bg-zinc-900 rounded overflow-hidden border border-zinc-800">
-              <div 
-                className={`h-full ${stats.noise > 60 ? 'bg-red-500' : stats.noise > 30 ? 'bg-amber-500' : 'bg-emerald-500'}`}
-                style={{ width: `${Math.min(100, stats.noise)}%` }}
-              />
-            </div>
-            <span className="text-[10px] font-mono text-zinc-400 tabular-nums shrink-0">{Math.round(stats.noise)}%</span>
-          </div>
-
-          {/* Oxygen / Breath */}
-          <div className="flex items-center gap-1.5 flex-1 max-w-[90px]">
-            <Wind className="w-3 h-3 text-cyan-400 shrink-0" />
-            <div className="w-full h-1.5 bg-zinc-900 rounded overflow-hidden border border-zinc-800">
-              <div 
-                className="h-full bg-cyan-400"
-                style={{ width: `${Math.min(100, stats.breath)}%` }}
-              />
-            </div>
-            <span className="text-[10px] font-mono text-zinc-400 tabular-nums shrink-0">{Math.round(stats.breath)}%</span>
-          </div>
-
-          {/* Stamina */}
-          <div className="flex items-center gap-1.5 flex-1 max-w-[90px]">
-            <Zap className="w-3 h-3 text-emerald-400 shrink-0" />
-            <div className="w-full h-1.5 bg-zinc-900 rounded overflow-hidden border border-zinc-800">
-              <div 
-                className={`h-full ${stats.isSprinting ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'}`}
-                style={{ width: `${Math.min(100, stats.stamina)}%` }}
-              />
-            </div>
-            <span className="text-[10px] font-mono text-zinc-400 tabular-nums shrink-0">{Math.round(stats.stamina)}%</span>
-          </div>
-
-          {/* Battery */}
-          <div className="flex items-center gap-1 shrink-0">
-            <span className="text-[10px] font-mono text-amber-400 tabular-nums">⚡ {Math.round(stats.battery)}%</span>
-          </div>
-        </div>
-      )}
+      {/* Telemetry Tab Modal: Holds all data (Air / Breath, Steps Volume / Noise, BPM, Battery, Monster threat, Objectives) */}
+      <TelemetryTabModal
+        isOpen={isTelemetryOpen}
+        onClose={() => setIsTelemetryOpen(false)}
+        stats={stats}
+        ghostState={ghostState}
+        ghostDistance={ghostDistance}
+        quest={quest}
+        onToggleFlashlight={onToggleFlashlight}
+      />
 
       {/* Mobile On-Screen Widgets (Touch Joystick, Head Turn Lookpad, Snap Rotate, Mobile Actions) */}
       {showMobileControls && onMove && onRotateCamera && onSnapRotate && (

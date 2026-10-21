@@ -9,7 +9,8 @@ import { GameHUD } from './components/GameHUD';
 import { GddDossier } from './components/GddDossier';
 import { PlayerStats, QuestState, GhostState } from './types/game';
 import { horrorAudio } from './audio/horrorAudio';
-import { Play, BookOpen, Volume2, Shield, Eye, Flame, Download } from 'lucide-react';
+import { Play, BookOpen, Volume2, Shield, Eye, Flame, Download, Smartphone } from 'lucide-react';
+import { PWAInstallButton } from './components/PWAInstallButton';
 
 export default function App() {
   const [viewMode, setViewMode] = useState<'intro' | 'game' | 'gdd'>('intro');
@@ -214,18 +215,24 @@ export default function App() {
               </div>
             </div>
 
-            {/* Mobile Controls Notice Banner */}
-            <div className="bg-zinc-900/60 border border-amber-500/30 rounded-lg px-4 py-2 mb-8 text-[11px] text-amber-200/90 font-mono flex items-center gap-2.5">
-              <span className="px-1.5 py-0.5 bg-amber-500/20 rounded text-[10px] text-amber-300 font-bold uppercase shrink-0">
-                📱 На телефоне
-              </span>
-              <span>
-                Виджеты активны: 3D-джойстик ходьбы и бега (в край = спринт), тачпад поворота головы 360°, развороты 90°/180° и кнопки действий.
-              </span>
+            {/* Mobile Controls & PWA Banner */}
+            <div className="bg-zinc-900/80 border border-red-800/60 rounded-xl p-3 mb-6 text-xs text-zinc-300 font-mono space-y-2 shadow-xl">
+              <div className="flex items-center justify-between gap-2">
+                <span className="flex items-center gap-1.5 text-amber-300 font-bold uppercase tracking-wider text-[11px]">
+                  <Smartphone className="w-3.5 h-3.5 text-amber-400" />
+                  Мобильная версия & Сенсорное управление:
+                </span>
+                <PWAInstallButton />
+              </div>
+              <p className="text-[11px] text-zinc-400 leading-relaxed">
+                • <strong>Сенсорный обзор 360°:</strong> просто касайтесь и ведите пальцем по экрану для плавного поворота головы (без отдельных кнопок!).<br />
+                • <strong>3D-джойстик:</strong> ходьба и бег слева (в край = ускоренный спринт).<br />
+                • <strong>Вкладка «📊 Датчики»:</strong> воздух, громкость шагов, пульс и батарея вынесены в отдельную вкладку, оставляя весь экран чистым для хоррора!
+              </p>
             </div>
 
             {/* Primary Action Buttons */}
-            <div className="flex flex-wrap items-center gap-4">
+            <div className="flex flex-wrap items-center gap-3">
               <button
                 onClick={startNewGame}
                 className="px-8 py-4 bg-red-600 hover:bg-red-500 text-white font-bold text-sm uppercase tracking-widest rounded shadow-2xl shadow-red-950 flex items-center gap-3 cursor-pointer transition-transform hover:scale-105 active:scale-95"
@@ -236,16 +243,16 @@ export default function App() {
 
               <button
                 onClick={downloadGameFile}
-                className="px-6 py-4 bg-amber-950/40 hover:bg-amber-900/60 border border-amber-600/50 text-amber-200 font-semibold text-sm uppercase tracking-widest rounded flex items-center gap-2 cursor-pointer transition-all shadow-lg shadow-amber-950/40 hover:scale-105"
+                className="px-5 py-4 bg-amber-950/40 hover:bg-amber-900/60 border border-amber-600/50 text-amber-200 font-semibold text-xs uppercase tracking-widest rounded flex items-center gap-2 cursor-pointer transition-all shadow-lg shadow-amber-950/40 hover:scale-105"
                 title="Скачать готовую игру в одном автономном HTML-файле"
               >
                 <Download className="w-4 h-4 text-amber-400" />
-                Скачать Файл Игры (.html)
+                Скачать HTML-файл
               </button>
 
               <button
                 onClick={() => setViewMode('gdd')}
-                className="px-6 py-4 bg-zinc-900/90 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 font-semibold text-sm uppercase tracking-widest rounded flex items-center gap-2 cursor-pointer transition-colors"
+                className="px-5 py-4 bg-zinc-900/90 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 font-semibold text-xs uppercase tracking-widest rounded flex items-center gap-2 cursor-pointer transition-colors"
               >
                 <BookOpen className="w-4 h-4 text-red-400" />
                 Изучить GDD

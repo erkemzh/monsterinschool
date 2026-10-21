@@ -2,20 +2,40 @@
 <html lang="ru" class="dark bg-zinc-950 text-zinc-100">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Проклятый Флигель (The Forgotten Wing) — Хоррор & GDD</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>Проклятый Флигель (The Forgotten Wing)</title>
     <meta name="description" content="Атмосферный 3D survival horror от первого лица и полный Game Design Document. Исследование заброшенного крыла школы, физические баррикады, шкафы-укрытия и непредсказуемый ИИ-призрак." />
-    <meta property="og:title" content="Проклятый Флигель (The Forgotten Wing) — Хоррор & GDD" />
+    
+    <!-- PWA Mobile Web App meta tags -->
+    <meta name="theme-color" content="#09090b" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Флигель 3D" />
+    <meta name="application-name" content="Проклятый Флигель" />
+    <meta name="msapplication-TileColor" content="#09090b" />
+    <meta name="format-detection" content="telephone=no" />
+
+    <!-- Icons -->
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/pwa-192x192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/pwa-512x512.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <!-- Open Graph & Twitter -->
+    <meta property="og:title" content="Проклятый Флигель (The Forgotten Wing)" />
     <meta property="og:description" content="Атмосферный 3D survival horror от первого лица и полный Game Design Document. Исследование заброшенного крыла школы, физические баррикады, шкафы-укрытия и непредсказуемый ИИ-призрак." />
     <meta property="og:type" content="website" />
+    <meta property="og:image" content="/pwa-512x512.png" />
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="/pwa-512x512.png" />
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
   </head>
-  <body class="bg-zinc-950 text-zinc-100 overflow-hidden select-none antialiased">
+  <body class="bg-zinc-950 text-zinc-100 overflow-hidden select-none antialiased touch-none">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
-
