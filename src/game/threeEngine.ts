@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
-import { DoorData, ClosetData, QuestState, GhostState } from '../types/game';
+import { DoorData, ClosetData, QuestState, GhostState, NPCData } from '../types/game';
 import { horrorAudio } from '../audio/horrorAudio';
 import {
   getSovietWallTexture,
@@ -13,6 +13,8 @@ import {
   getBookshelfTexture,
   getOccultAltarTexture,
 } from './proceduralTextures';
+import { buildFloor2AndStairs } from './floor2Builder';
+import { buildNpcActors, NpcActor } from './npcBuilder';
 
 export interface GameEngineCallbacks {
   onStatsUpdate: (stats: {
@@ -34,6 +36,7 @@ export interface GameEngineCallbacks {
   onInventoryUpdate: (heldThrowable: string | null, relics: string[]) => void;
   onGameOver: (escaped: boolean) => void;
   onNotification: (text: string) => void;
+  onOpenNpcDialogue?: (npc: NPCData) => void;
 }
 
 export class ForgottenWingEngine {
@@ -128,6 +131,12 @@ export class ForgottenWingEngine {
   private closets: Map<string, { data: ClosetData; group: THREE.Group }> = new Map();
   private interactables: THREE.Object3D[] = [];
   private thrownProjectiles: Array<{ mesh: THREE.Mesh; vel: THREE.Vector3; life: number }> = [];
+
+  // Secondary Characters (NPCs)
+  private npcActors: Map<string, NpcActor> = new Map();
+  private updateNpcsFn: ((time: number, delta: number) => void) | null = null;
+  private hasMasterKey = false;
+  private isSafeOpened = false;
 
   // Quest State
   private quest: QuestState = {
@@ -225,16 +234,28 @@ export class ForgottenWingEngine {
     floor.receiveShadow = true;
     this.scene.add(floor);
 
-    // Ceiling with subtle plaster grid
-    const ceilGeo = new THREE.PlaneGeometry(40, 64);
+    // Ceiling on Floor 1 with opening for the North Stairwell
     const ceilMat = new THREE.MeshStandardMaterial({
       color: 0x242a2f,
       roughness: 0.9,
     });
-    const ceiling = new THREE.Mesh(ceilGeo, ceilMat);
-    ceiling.rotation.x = Math.PI / 2;
-    ceiling.position.set(0, 3.8, 0);
-    this.scene.add(ceiling);
+    // South half of 1st floor ceiling (z: -15 to 27)
+    const ceilSouth = new THREE.Mesh(new THREE.PlaneGeometry(40, 42), ceilMat);
+    ceilSouth.rotation.x = Math.PI / 2;
+    ceilSouth.position.set(0, 3.8, 6.0);
+    this.scene.add(ceilSouth);
+
+    // North West ceiling above Chem Lab (leaving corridor stairwell open)
+    const ceilWest = new THREE.Mesh(new THREE.PlaneGeometry(14, 12), ceilMat);
+    ceilWest.rotation.x = Math.PI / 2;
+    ceilWest.position.set(-12, 3.8, -21.0);
+    this.scene.add(ceilWest);
+
+    // North East ceiling above Boiler Room
+    const ceilEast = new THREE.Mesh(new THREE.PlaneGeometry(14, 12), ceilMat);
+    ceilEast.rotation.x = Math.PI / 2;
+    ceilEast.position.set(12, 3.8, -21.0);
+    this.scene.add(ceilEast);
 
     // Outer boundary walls with Windows & Radiators
     this.createDetailedWall(0, 1.9, 27, 38, 3.8, 0.6, wallTex); // South outer boundary
@@ -341,6 +362,27 @@ export class ForgottenWingEngine {
 
     // Main Exit Gate at south corridor
     this.buildMainExitGate();
+
+    // ==========================================
+    // FLOOR 2 & GRAND STAIRCASE (4 NEW ROOMS)
+    // ==========================================
+    buildFloor2AndStairs({
+      scene: this.scene,
+      colliders: this.colliders,
+      interactables: this.interactables,
+      doors: this.doors,
+      hallwayLights: this.hallwayLights,
+      brightnessMultiplier: this.brightnessMultiplier,
+      wallTexture: wallTex,
+      floorTexture: floorTex,
+    });
+
+    // ==========================================
+    // SECONDARY CHARACTERS (NPCS: ALEXEY, MISHA, TANYA)
+    // ==========================================
+    const { actors, updateAll } = buildNpcActors(this.scene, this.interactables, this.colliders);
+    this.npcActors = actors;
+    this.updateNpcsFn = updateAll;
   }
 
   private createDetailedWall(x: number, y: number, z: number, w: number, h: number, d: number, tex: THREE.Texture) {
@@ -1307,7 +1349,59 @@ export class ForgottenWingEngine {
       this.activateAltar();
     } else if (type === 'exitGate') {
       this.tryEscape();
+    } else if (type === 'npc') {
+      const actor = this.npcActors.get(id);
+      if (actor) {
+        this.callbacks.onOpenNpcDialogue?.(actor.data);
+      }
+    } else if (type === 'safe') {
+      this.openDirectorSafe();
+    } else if (type === 'bellSwitch') {
+      this.ringFireBell();
     }
+  }
+
+  public applyNpcReward(reward: { id: string; name: string; type: 'key' | 'battery' | 'sanity' }) {
+    if (reward.type === 'battery') {
+      this.battery = Math.min(100, this.battery + 50);
+      this.callbacks.onNotification('« АККУМУЛЯТОР ЗАРЯЖЕН (+50%) »');
+    } else if (reward.type === 'key') {
+      this.hasMasterKey = true;
+      this.quest.hasMasterKey = true;
+      this.callbacks.onQuestUpdate({ ...this.quest });
+      this.callbacks.onNotification('« МАСТЕР-КЛЮЧ ДИРЕКТОРА В ИНВЕНТАРЕ! »');
+    } else if (reward.type === 'sanity') {
+      this.sanity = 100;
+      this.bpm = 70;
+      this.callbacks.onNotification('« БЛАГОСЛОВЕНИЕ ТАНИ: РАССУДОК ПОЛНОСТЬЮ ИСЦЕЛЁН »');
+    }
+  }
+
+  public openDirectorSafe() {
+    if (this.isSafeOpened) {
+      this.callbacks.onNotification('Сейф директора уже пуст.');
+      return;
+    }
+
+    if (this.hasMasterKey || this.quest.hasMasterKey) {
+      this.isSafeOpened = true;
+      this.quest.hasSafeOpened = true;
+      this.quest.hasKey = true;
+      horrorAudio.playRelicPickup();
+      this.callbacks.onQuestUpdate({ ...this.quest });
+      this.callbacks.onNotification('« СЕЙФ ОТКРЫТ! ВНУТРИ: СВИНЦОВАЯ ПЕЧАТЬ ДИРЕКТОРА И ДНЕВНИК 1974 ГОДА »');
+    } else {
+      this.callbacks.onNotification('« СЕЙФ ЗАПЕРТ. НУЖЕН СТАЛЬНОЙ КЛЮЧ СТОРОЖА ДЯДИ МИШИ ИЗ АРХИВА! »');
+    }
+  }
+
+  public ringFireBell() {
+    horrorAudio.playRelicPickup();
+    this.ghostState = 'wandering';
+    this.ghostHuntTimer = 0;
+    this.ghostSpeed = 2.0;
+    this.ghostTarget.set(0, 1.6, -15);
+    this.callbacks.onNotification('« ОГЛУШИТЕЛЬНЫЙ РЁВ СИРЕНЫ! ПРИЗРАК В ПАНИКЕ ОТСТУПАЕТ В ПОДВАЛ! »');
   }
 
   public toggleDoor(doorId: string) {
@@ -1468,8 +1562,8 @@ export class ForgottenWingEngine {
 
   private startActiveHunt(reason = '« ОХОТА НАЧАЛАСЬ! ТЕНЬ МЧИТСЯ НА ТВОЙ СТРАХ! »') {
     this.ghostState = 'hunt';
-    this.ghostHuntTimer = 20;
-    this.ghostSpeed = 4.4;
+    this.ghostHuntTimer = 7.0; // Short hunt (7 seconds)
+    this.ghostSpeed = 2.8;     // Reduced speed so player can outrun/hide
     horrorAudio.playHuntStinger();
     this.callbacks.onNotification(reason);
   }
@@ -1517,15 +1611,44 @@ export class ForgottenWingEngine {
     this.isCrouching = crouch;
   }
 
+  private getFloorHeight(x: number, z: number): number {
+    // Central staircase flight (x between -1.85 and 1.85, z between -17.0 and -24.5)
+    if (Math.abs(x) <= 1.85 && z <= -17.0 && z >= -24.5) {
+      const t = (-17.0 - z) / 7.5; // 0.0 at -17.0, 1.0 at -24.5
+      return Math.max(0, Math.min(4.2, t * 4.2));
+    }
+
+    // Top North Landing (z < -24.5)
+    if (z < -24.5) {
+      return 4.2;
+    }
+
+    // Upper Walkway Galleries flanking the open stairwell (z: -17.0 to -24.5, abs(x) > 1.85)
+    if (z <= -17.0 && z >= -24.5 && Math.abs(x) > 1.85) {
+      return 4.2;
+    }
+
+    // Floor 2 rooms and hallway (z > -17.0)
+    // If player is already on Floor 2 level (y > 2.8)
+    if (this.playerPos.y > 2.8) {
+      return 4.2;
+    }
+
+    // Floor 1
+    return 0;
+  }
+
   private startLoop() {
     const animate = () => {
       this.animationFrameId = requestAnimationFrame(animate);
       const delta = Math.min(this.clock.getDelta(), 0.1);
+      const time = this.clock.getElapsedTime();
 
       this.updatePlayer(delta);
       this.updateDetailedGhost(delta);
       this.updateProjectiles(delta);
       this.updateFlickerLights(delta);
+      this.updateNpcsFn?.(time, delta);
       this.checkInteractions();
       this.updateStats(delta);
 
@@ -1579,10 +1702,12 @@ export class ForgottenWingEngine {
       moveDir.applyEuler(new THREE.Euler(0, this.cameraYaw, 0));
 
       const nextPos = this.playerPos.clone().addScaledVector(moveDir, speed * delta);
+      const nextFloorY = this.getFloorHeight(nextPos.x, nextPos.z);
+      const eyeHeight = this.isCrouching ? 1.05 : 1.65;
 
       const playerBox = new THREE.Box3(
-        new THREE.Vector3(nextPos.x - 0.4, 0.2, nextPos.z - 0.4),
-        new THREE.Vector3(nextPos.x + 0.4, 2.0, nextPos.z + 0.4)
+        new THREE.Vector3(nextPos.x - 0.38, nextFloorY + 0.15, nextPos.z - 0.38),
+        new THREE.Vector3(nextPos.x + 0.38, nextFloorY + eyeHeight + 0.25, nextPos.z + 0.38)
       );
 
       let collided = false;
@@ -1618,9 +1743,21 @@ export class ForgottenWingEngine {
       this.camera.updateProjectionMatrix();
     }
 
-    const targetHeight = this.isCrouching ? 1.05 : 1.65;
-    this.playerPos.y += (targetHeight - this.playerPos.y) * 8 * delta;
+    // Dynamic vertical floor tracking (Stairs & Floor 2)
+    const currentBaseFloorY = this.getFloorHeight(this.playerPos.x, this.playerPos.z);
+    const targetHeight = currentBaseFloorY + (this.isCrouching ? 1.05 : 1.65);
+    this.playerPos.y += (targetHeight - this.playerPos.y) * 12 * delta;
     this.camera.position.copy(this.playerPos);
+
+    // Floor transition tracking
+    const currentFloor: 1 | 2 = this.playerPos.y > 3.0 ? 2 : 1;
+    if (this.quest.currentFloor !== currentFloor) {
+      this.quest.currentFloor = currentFloor;
+      this.callbacks.onQuestUpdate({ ...this.quest });
+      this.callbacks.onNotification(
+        currentFloor === 2 ? '« ТЫ ПОДНЯЛСЯ НА 2 ЭТАЖ • УЧЕБНЫЙ КОРПУС »' : '« ТЫ СПУСТИЛСЯ НА 1 ЭТАЖ • ГЛАВНЫЙ КОРИДОР »'
+      );
+    }
 
     // Flashlight & Aura light update
     this.flashlight.position.copy(this.camera.position);
@@ -1637,7 +1774,7 @@ export class ForgottenWingEngine {
     // Ghost state logic
     if (this.ghostState === 'hunt') {
       this.ghostHuntTimer -= delta;
-      this.ghostSpeed = 4.6;
+      this.ghostSpeed = 2.8; // Fair speed: player can easily run or find a closet
 
       if (!this.isHiding) {
         this.ghostTarget.copy(this.playerPos);
@@ -1649,96 +1786,73 @@ export class ForgottenWingEngine {
 
       if (this.ghostHuntTimer <= 0) {
         this.ghostState = 'wandering';
-        this.ghostSpeed = 2.4;
-        this.callbacks.onNotification('Призрак отступил в тени... Охота окончена.');
+        this.ghostSpeed = 1.2;
+        this.proximityWarnCooldown = 12.0; // 12 seconds cooldown before any new alerts
+        this.callbacks.onNotification('« ТЕНЬ ПОТЕРЯЛА ИНТЕРЕС И ОТСТУПИЛА ВО ТЬМУ... »');
       }
 
-      if (distToPlayer < 1.4 && !this.isHiding) {
+      // Lethal contact only if touching in hunt mode
+      if (distToPlayer < 0.95 && !this.isHiding) {
         horrorAudio.playHuntStinger();
         this.callbacks.onGameOver(false);
         return;
       }
     } else {
-      // PROXIMITY AGGRESSION: Only aggressive when player is DIRECTLY CLOSE (< 4.0m)
       this.proximityWarnCooldown = Math.max(0, this.proximityWarnCooldown - delta);
 
       if (!this.isHiding) {
-        // Player is exposed in the open
-        if (distToPlayer < 4.0) {
-          // DIRECT CLOSE PROXIMITY: Player is right in the ghost's personal space
-          this.startActiveHunt('« ОНО ПРЯМО ПЕРЕД ТОБОЙ! ЛЕДЯНОЙ ХОЛОД СЖИМАЕТ ГОРЛО! »');
-        } else if (distToPlayer < 8.5) {
-          // MEDIUM PROXIMITY: Ghost is curious / suspicious, but DOES NOT immediately attack!
-          if (this.isFlashlightOn) {
-            // Light attracts curiosity
-            this.proximityDetectTimer += delta * 0.8;
-            if (this.proximityDetectTimer > 2.5) {
-              this.proximityDetectTimer = 0;
-              this.startActiveHunt('« ТЕНЬ РАЗГЛЯДЕЛА ТЕБЯ В ЛУЧЕ СВЕТА И РВАНУЛАСЬ ВПЕРЁД! »');
-            } else {
-              this.ghostTarget.copy(this.playerPos);
-              if (this.proximityWarnCooldown <= 0) {
-                this.proximityWarnCooldown = 3.5;
-                this.callbacks.onNotification('« ТЕНЬ ОБРАТИЛА ВЗОР К СВЕТУ... ПОГАСИ ФОНАРЬ! »');
-              }
-            }
-          } else if (this.isSprinting) {
-            // Loud footsteps make ghost turn to investigate
-            this.ghostState = 'investigating';
-            this.ghostTarget.copy(this.playerPos);
-            if (this.proximityWarnCooldown <= 0) {
-              this.proximityWarnCooldown = 3.0;
-              this.callbacks.onNotification('« ТЯЖЁЛЫЙ ТОПОТ ШАГОВ ПРИВЛЕК ТЕНЬ... »');
-            }
-          } else {
-            // Walking or crouching quietly: ghost continues patrol or slowly looks around
-            this.proximityDetectTimer = Math.max(0, this.proximityDetectTimer - delta);
+        // POINT-BLANK RANGE (< 1.4m): The only condition where the ghost attacks!
+        if (distToPlayer < 1.4) {
+          this.startActiveHunt('« ТЫ ПОДОШЁЛ ВПРИТЫК К СУЩНОСТИ! ОНА С РЁВОМ АТАКУЕТ! »');
+        } else if (distToPlayer < 4.2) {
+          // Close proximity (1.4m - 4.2m): Ghost pauses or stares with menacing aura, but DOES NOT attack!
+          this.ghostTarget.copy(this.playerPos);
+          if (this.proximityWarnCooldown <= 0) {
+            this.proximityWarnCooldown = 4.5;
+            this.callbacks.onNotification('« ТЕНЬ РЯДОМ! НЕ ПОДХОДИ ВПРИТЫК — ДЕРЖИСЬ НА РАССТОЯНИИ! »');
           }
-        } else {
-          this.proximityDetectTimer = Math.max(0, this.proximityDetectTimer - delta * 0.5);
+        } else if (distToPlayer < 9.0 && this.isFlashlightOn) {
+          // Medium distance with flashlight: ghost slowly turns toward light, but remains non-hostile
+          if (this.proximityWarnCooldown <= 0 && Math.random() < 0.15) {
+            this.proximityWarnCooldown = 6.0;
+            this.callbacks.onNotification('« ТЕНЬ ВДАЛИ ЗАМЕТИЛА ЛУЧ СВЕТА, НО НЕ НАПАДАЕТ »');
+          }
         }
       } else {
-        // Player is inside a closet: only check when ghost is right next to the closet door
-        if (distToPlayer < 3.2) {
+        // Player is inside closet
+        if (distToPlayer < 1.3) {
           if (this.isFlashlightOn) {
             this.exitCloset();
             this.startActiveHunt('« СВЕТ ФОНАРИКА СКВОЗЬ ЩЕЛИ ВЫДАЛ ТЕБЯ! »');
           } else if (!this.isHoldingBreath) {
-            this.proximityDetectTimer += delta * 1.0;
-            if (this.proximityDetectTimer > 2.5) {
+            this.proximityDetectTimer += delta * 0.7;
+            if (this.proximityDetectTimer > 3.5) {
               this.proximityDetectTimer = 0;
               this.exitCloset();
-              this.startActiveHunt('« ТВОЁ ДЫХАНИЕ ВЫДАЛО ТЕБЯ... ДВЕРЦА ШКАФА ВЫРВАНА! »');
+              this.startActiveHunt('« ДЫХАНИЕ ВЫДАЛО ТЕБЯ... ДВЕРЦА ШКАФА РАСПАХНУТА! »');
             } else if (this.proximityWarnCooldown <= 0) {
-              this.proximityWarnCooldown = 2.0;
+              this.proximityWarnCooldown = 2.5;
               this.callbacks.onNotification('« ОНО ДЫШИТ ЗА ДВЕРЦЕЙ ШКАФА... ЗАДЕРЖИ ДЫХАНИЕ [ПРОБЕЛ]! »');
             }
           } else {
-            // Safe while holding breath
             this.proximityDetectTimer = 0;
           }
         }
       }
 
-      // If not triggered into hunt by proximity, handle normal patrol / investigation
+      // Calm, slow atmospheric patrol when not hunting
       if (this.ghostState === 'investigating') {
-        this.ghostSpeed = 3.2;
+        this.ghostSpeed = 1.6;
         if (this.ghostPos.distanceTo(this.ghostTarget) < 1.5) {
           this.ghostState = 'wandering';
         }
-      } else if (this.ghostState === 'stalking') {
-        this.ghostSpeed = 2.8;
       } else {
-        this.ghostSpeed = 2.2;
+        this.ghostSpeed = 1.2; // Slow, cinematic creep
         const wp = this.ghostWaypoints[this.currentWaypointIdx];
         this.ghostTarget.copy(wp);
 
         if (this.ghostPos.distanceTo(wp) < 1.5) {
           this.currentWaypointIdx = (this.currentWaypointIdx + 1) % this.ghostWaypoints.length;
-        }
-
-        if (this.noise > 70 && Math.random() < 0.03) {
-          this.startActiveHunt('ГРОМКИЙ ШУМ СПРОВОЦИРОВАЛ ОХОТУ ПРИЗРАКА!');
         }
       }
     }
@@ -1882,6 +1996,18 @@ export class ForgottenWingEngine {
       } else if (data?.isExitGate) {
         this.currentInteractTarget = { type: 'exitGate', id: 'exit', name: data.name };
         this.callbacks.onInteractPrompt(`[E] Отпереть главные ворота`);
+        return;
+      } else if (data?.isNpc) {
+        this.currentInteractTarget = { type: 'npc', id: data.npcId, name: data.name };
+        this.callbacks.onInteractPrompt(`[E] Поговорить: ${data.name}`);
+        return;
+      } else if (data?.isSafe) {
+        this.currentInteractTarget = { type: 'safe', id: data.safeId, name: data.name };
+        this.callbacks.onInteractPrompt(`[E] Осмотреть сейф директора`);
+        return;
+      } else if (data?.isBellSwitch) {
+        this.currentInteractTarget = { type: 'bellSwitch', id: 'bell', name: data.name };
+        this.callbacks.onInteractPrompt(`[E] Включить пожарную сирену (Отпугнуть призрака)`);
         return;
       }
     }

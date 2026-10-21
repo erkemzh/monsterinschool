@@ -464,3 +464,185 @@ export function getOccultAltarTexture(): THREE.CanvasTexture {
   textureCache.set('altar', texture);
   return texture;
 }
+
+/**
+ * Creates rich Floor 2 Herringbone Parquet texture (polished mahogany & amber wood)
+ */
+export function getFloor2ParquetTexture(): THREE.CanvasTexture {
+  if (textureCache.has('floor2_parquet')) return textureCache.get('floor2_parquet')!;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d')!;
+
+  ctx.fillStyle = '#2d180d';
+  ctx.fillRect(0, 0, 512, 512);
+
+  // Stately Herringbone Pattern
+  const bw = 32;
+  const bh = 128;
+  for (let y = -bh; y < 512 + bh; y += 32) {
+    for (let x = -bh; x < 512 + bh; x += 64) {
+      const idx = Math.floor((x * 7 + y * 13) / 100);
+      const tone = 20 + (Math.abs(idx) % 22);
+      ctx.fillStyle = `rgb(${tone + 55}, ${tone + 28}, ${tone + 12})`;
+      ctx.fillRect(x + 1, y + 1, bw - 2, bh - 2);
+
+      // Fine varnish sheen line
+      ctx.strokeStyle = 'rgba(255, 220, 180, 0.08)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x + 3, y + 5);
+      ctx.lineTo(x + 3, y + bh - 5);
+      ctx.stroke();
+
+      // Slanted opposing plank
+      ctx.fillStyle = `rgb(${tone + 48}, ${tone + 24}, ${tone + 10})`;
+      ctx.fillRect(x + bw + 1, y + 16, bw - 2, bh - 2);
+    }
+  }
+
+  // Soft overall dark lacquer vignette
+  const grad = ctx.createRadialGradient(256, 256, 120, 256, 256, 320);
+  grad.addColorStop(0, 'rgba(0,0,0,0)');
+  grad.addColorStop(1, 'rgba(0,0,0,0.3)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 512, 512);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  textureCache.set('floor2_parquet', texture);
+  return texture;
+}
+
+/**
+ * Creates authentic Soviet ceremonial crimson runner carpet with gold borders
+ */
+export function getSovietCarpetTexture(): THREE.CanvasTexture {
+  if (textureCache.has('carpet_runner')) return textureCache.get('carpet_runner')!;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d')!;
+
+  // Deep crimson red velvet
+  ctx.fillStyle = '#831818';
+  ctx.fillRect(0, 0, 512, 512);
+
+  // Fine carpet pile micro-texture
+  for (let i = 0; i < 6000; i++) {
+    const rx = Math.random() * 512;
+    const ry = Math.random() * 512;
+    ctx.fillStyle = Math.random() > 0.5 ? 'rgba(0,0,0,0.08)' : 'rgba(255,180,180,0.06)';
+    ctx.fillRect(rx, ry, 2, 2);
+  }
+
+  // Golden Greek-key / ornamental borders on left and right
+  const drawBorder = (bx: number) => {
+    ctx.fillStyle = '#d4af37';
+    ctx.fillRect(bx, 0, 6, 512);
+    ctx.fillRect(bx + 16, 0, 3, 512);
+
+    // Decorative geometric medallions along the runner border
+    for (let y = 16; y < 512; y += 48) {
+      ctx.strokeStyle = '#d4af37';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(bx + 6, y, 10, 24);
+    }
+  };
+
+  drawBorder(20);
+  drawBorder(472);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  textureCache.set('carpet_runner', texture);
+  return texture;
+}
+
+/**
+ * Creates authentic Soviet hospital quarantine checkerboard tiles (pale celadon & ivory)
+ */
+export function getHospitalTileFloorTexture(): THREE.CanvasTexture {
+  if (textureCache.has('hospital_tile')) return textureCache.get('hospital_tile')!;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d')!;
+
+  ctx.fillStyle = '#1e293b';
+  ctx.fillRect(0, 0, 512, 512);
+
+  const size = 64;
+  for (let y = 0; y < 512; y += size) {
+    for (let x = 0; x < 512; x += size) {
+      const isAlt = ((x / size) + (y / size)) % 2 === 0;
+      // Celadon hospital green or sterile ivory
+      ctx.fillStyle = isAlt ? '#d1fae5' : '#f8fafc';
+      ctx.fillRect(x + 2, y + 2, size - 4, size - 4);
+
+      // Glossy antiseptic reflection highlight
+      ctx.fillStyle = 'rgba(255,255,255,0.2)';
+      ctx.fillRect(x + 4, y + 4, size - 8, 8);
+    }
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  textureCache.set('hospital_tile', texture);
+  return texture;
+}
+
+/**
+ * Creates aged Archive room plank floor with iron nail heads and wear
+ */
+export function getArchivePlankFloorTexture(): THREE.CanvasTexture {
+  if (textureCache.has('archive_planks')) return textureCache.get('archive_planks')!;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d')!;
+
+  ctx.fillStyle = '#1c1917';
+  ctx.fillRect(0, 0, 512, 512);
+
+  const plankHeight = 48;
+  for (let y = 0; y < 512; y += plankHeight) {
+    const tone = 30 + ((y * 17) % 25);
+    ctx.fillStyle = `rgb(${tone + 30}, ${tone + 15}, ${tone + 8})`;
+    ctx.fillRect(0, y + 2, 512, plankHeight - 4);
+
+    // Nail heads along planks
+    ctx.fillStyle = '#0c0a09';
+    for (let x = 40; x < 512; x += 120) {
+      ctx.beginPath();
+      ctx.arc(x, y + 12, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(x, y + plankHeight - 12, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Wood scratches
+    ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(30, y + 20);
+    ctx.lineTo(240, y + 22);
+    ctx.stroke();
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  textureCache.set('archive_planks', texture);
+  return texture;
+}
+

@@ -22,6 +22,9 @@ const imgMap = {
   '/src/assets/images/abandoned_classroom_1791380679853.jpg': 'src/assets/images/abandoned_classroom_1791380679853.jpg',
   '/src/assets/images/first_person_closet_1791380642871.jpg': 'src/assets/images/first_person_closet_1791380642871.jpg',
   '/src/assets/images/ghost_breaking_barricade_1791380664425.jpg': 'src/assets/images/ghost_breaking_barricade_1791380664425.jpg',
+  '/src/assets/images/alexey_student_portrait_1792592255622.jpg': 'src/assets/images/alexey_student_portrait_1792592255622.jpg',
+  '/src/assets/images/watchman_misha_portrait_1792592273636.jpg': 'src/assets/images/watchman_misha_portrait_1792592273636.jpg',
+  '/src/assets/images/tanya_ghost_portrait_1792592297350.jpg': 'src/assets/images/tanya_ghost_portrait_1792592297350.jpg',
 };
 
 for (const [urlPath, localPath] of Object.entries(imgMap)) {

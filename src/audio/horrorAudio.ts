@@ -404,6 +404,62 @@ class HorrorAudioEngine {
       osc.stop(t + idx * 0.1 + 0.85);
     });
   }
+
+  public playNpcVoice(role: 'student' | 'watchman' | 'ghost_girl') {
+    if (!this.ctx || !this.masterGain || this.isMuted) return;
+    const t = this.ctx.currentTime;
+
+    if (role === 'student') {
+      // Trembling nervous whisper breath
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      const filter = this.ctx.createBiquadFilter();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(180, t);
+      osc.frequency.linearRampToValueAtTime(240, t + 0.2);
+      osc.frequency.linearRampToValueAtTime(160, t + 0.4);
+      filter.type = 'bandpass';
+      filter.frequency.setValueAtTime(450, t);
+      gain.gain.setValueAtTime(0.15, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.masterGain);
+      osc.start(t);
+      osc.stop(t + 0.5);
+    } else if (role === 'watchman') {
+      // Gruff low raspy radio voice
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      const filter = this.ctx.createBiquadFilter();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(95, t);
+      osc.frequency.linearRampToValueAtTime(80, t + 0.35);
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(280, t);
+      gain.gain.setValueAtTime(0.22, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.masterGain);
+      osc.start(t);
+      osc.stop(t + 0.42);
+    } else {
+      // Ethereal bell-like ghost chime chords
+      [523.25, 659.25, 783.99, 1046.5].forEach((freq, i) => {
+        const osc = this.ctx!.createOscillator();
+        const gain = this.ctx!.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, t + i * 0.04);
+        gain.gain.setValueAtTime(0.12, t + i * 0.04);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.04 + 1.2);
+        osc.connect(gain);
+        gain.connect(this.masterGain!);
+        osc.start(t + i * 0.04);
+        osc.stop(t + i * 0.04 + 1.25);
+      });
+    }
+  }
 }
 
 export const horrorAudio = new HorrorAudioEngine();

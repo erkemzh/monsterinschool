@@ -6,7 +6,7 @@ export interface InventoryItem {
   id: string;
   name: string;
   nameRu: string;
-  type: 'throwable' | 'relic' | 'tool';
+  type: 'throwable' | 'relic' | 'tool' | 'key' | 'battery';
   icon: string;
   description: string;
 }
@@ -33,6 +33,39 @@ export interface QuestState {
   isPowerRestored: boolean; // Fuse box in basement
   isRitualCompleted: boolean; // Occult circle activated
   canEscape: boolean;
+  // Floor 2 & NPCs progression
+  hasMasterKey?: boolean; // Key from watchman to Director's office & safe
+  hasSafeOpened?: boolean; // Director's office safe opened
+  metAlexey?: boolean; // Talked to student Alexey
+  metWatchman?: boolean; // Talked to night watchman Misha
+  metGhostGirl?: boolean; // Encountered ghost Tanya
+  currentFloor?: 1 | 2; // Floor level player is on
+}
+
+export interface DialogueOption {
+  text: string;
+  response: string;
+  giveItem?: {
+    id: string;
+    name: string;
+    type: 'key' | 'battery' | 'sanity';
+  };
+}
+
+export interface NPCData {
+  id: string;
+  name: string;
+  title: string;
+  role: 'student' | 'watchman' | 'ghost_girl';
+  floor: 1 | 2;
+  roomName: string;
+  position: [number, number, number];
+  portraitUrl: string;
+  dialogue: {
+    intro: string;
+    options: DialogueOption[];
+  };
+  hasGivenItem?: boolean;
 }
 
 export interface DoorData {
@@ -44,6 +77,8 @@ export interface DoorData {
   barricadeHealth: number; // 0 to 100
   position: [number, number, number];
   rotation: number;
+  floor?: 1 | 2;
+  isLocked?: boolean;
 }
 
 export interface ClosetData {
@@ -52,6 +87,7 @@ export interface ClosetData {
   position: [number, number, number];
   isOpen: boolean;
   isPlayerInside: boolean;
+  floor?: 1 | 2;
 }
 
 export interface ThrowableObject {
@@ -60,6 +96,7 @@ export interface ThrowableObject {
   type: 'beaker' | 'globe' | 'mug' | 'book';
   position: [number, number, number];
   isHeld: boolean;
+  floor?: 1 | 2;
 }
 
 export interface SoundDisturbance {

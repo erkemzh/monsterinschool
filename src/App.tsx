@@ -11,6 +11,8 @@ import { PlayerStats, QuestState, GhostState } from './types/game';
 import { horrorAudio } from './audio/horrorAudio';
 import { Play, BookOpen, Volume2, Shield, Eye, Flame, Download, Smartphone } from 'lucide-react';
 import { PWAInstallButton } from './components/PWAInstallButton';
+import { NpcDialogueModal } from './components/NpcDialogueModal';
+import { NPCData } from './types/game';
 
 export default function App() {
   const [viewMode, setViewMode] = useState<'intro' | 'game' | 'gdd'>('intro');
@@ -39,6 +41,7 @@ export default function App() {
   const [notification, setNotification] = useState<string | null>(null);
   const [isGameOver, setIsGameOver] = useState(false);
   const [isEscaped, setIsEscaped] = useState(false);
+  const [activeNpc, setActiveNpc] = useState<NPCData | null>(null);
   const [brightness, setBrightness] = useState(1.4);
   const [showMobileControls, setShowMobileControls] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
@@ -121,6 +124,9 @@ export default function App() {
       },
       onNotification: (text) => {
         showNotification(text);
+      },
+      onOpenNpcDialogue: (npc) => {
+        setActiveNpc(npc);
       },
     });
 
@@ -311,6 +317,15 @@ export default function App() {
             onRotateCamera={(yaw, pitch) => engineRef.current?.rotateCamera(yaw, pitch)}
             onSnapRotate={(deg) => engineRef.current?.snapRotate(deg)}
             onToggleCrouch={() => engineRef.current?.toggleCrouch()}
+          />
+
+          {/* Interactive Secondary Characters Dialogue Modal */}
+          <NpcDialogueModal
+            npc={activeNpc}
+            onClose={() => setActiveNpc(null)}
+            onGiveItem={(item) => {
+              engineRef.current?.applyNpcReward(item);
+            }}
           />
         </div>
       )}

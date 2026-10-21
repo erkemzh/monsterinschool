@@ -65,13 +65,14 @@ export const TelemetryTabModal: React.FC<TelemetryTabModalProps> = ({
   };
 
   const getCurrentObjective = (q: QuestState) => {
-    if (!q.hasChalk) return '1. Найти оккультный мел в Кабинете Литературы';
-    if (!q.hasSalt) return '2. Найти соль очищения в Кабинете Химии';
-    if (!q.hasKey) return '3. Найти ключ директора в Библиотеке';
-    if (!q.hasBellHammer) return '4. Найти боёк пожарного звонка в Котельной';
-    if (!q.isPowerRestored) return '5. Включить главный рубильник электрощитка';
-    if (!q.isRitualCompleted) return '6. Активировать печать изгнания в пентаграмме';
-    return '7. Беги к главному выходу из школы!';
+    if (!q.hasChalk) return '1. Найти оккультный мел в Кабинете Литературы (1 этаж)';
+    if (!q.hasSalt) return '2. Найти соль очищения в Кабинете Химии (1 этаж)';
+    if (!q.hasMasterKey && !q.hasKey) return '3. Подняться на 2-й этаж и найти сторожа дядю Мишу в Архиве';
+    if (!q.hasKey) return '4. Открыть бронированный сейф в Кабинете Директора (2 этаж)';
+    if (!q.hasBellHammer) return '5. Найти боёк пожарного звонка в Котельной (1 этаж)';
+    if (!q.isPowerRestored) return '6. Включить главный рубильник электрощитка (1 этаж)';
+    if (!q.isRitualCompleted) return '7. Активировать печать изгнания в пентаграмме';
+    return '8. Главный выход отперт! Беги к выходу!';
   };
 
   const noiseInfo = getNoiseLabel(stats.noise);
@@ -91,10 +92,13 @@ export const TelemetryTabModal: React.FC<TelemetryTabModalProps> = ({
             </div>
             <div>
               <div className="text-xs font-bold font-mono tracking-wider text-red-300 uppercase flex items-center gap-1.5">
-                <span>ВКЛАДКА: ДАТЧИКИ И СОСТОЯНИЕ</span>
+                <span>ВКЛАДКА: ДАТЧИКИ И КАРТА</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-amber-300 border border-zinc-700">
+                  {quest.currentFloor === 2 ? '2 ЭТАЖ' : '1 ЭТАЖ'}
+                </span>
               </div>
               <div className="text-[10px] text-zinc-400 font-mono">
-                Биосенсор «ЭХО-4» • Заброшенное крыло
+                {quest.currentFloor === 2 ? 'Учебный корпус (Архив, Директор, Радиоузел, Медпункт)' : 'Нижний сектор (Литература, Химия, Библиотека, Котельная)'}
               </div>
             </div>
           </div>
